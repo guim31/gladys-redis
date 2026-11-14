@@ -19,7 +19,7 @@ export class Store {
     this.path = join(directory, FILE_NAME);
     this.pending = null;
     this.writing = null;
-    // Saved after every read: a /data that cannot be written is reported once.
+    // A /data that cannot be written is reported once.
     this.failures = new FailureLog(logger);
   }
 

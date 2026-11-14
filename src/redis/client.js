@@ -13,6 +13,7 @@
 // kind (src/texts.js). The raw message stays in the logs.
 // -----------------------------------------------------------------------------
 
+import { isIP } from 'node:net';
 import { createClient as createRedisClient } from '@redis/client';
 
 export const ERROR_KINDS = Object.freeze({
@@ -53,6 +54,11 @@ export function errorKind(err) {
   if (err?.kind) {
     return err.kind;
   }
+  // The server cannot serve now (loading its data, a busy script, a replica
+  // without its master): the server's problem, not the key's.
+  if (/^(LOADING|BUSY|MASTERDOWN|TRYAGAIN|CLUSTERDOWN)\b/.test(message)) {
+    return ERROR_KINDS.UNREACHABLE;
+  }
   if (/^(WRONGPASS|NOAUTH)\b|invalid password|invalid username-password/i.test(message)) {
     return ERROR_KINDS.AUTH;
   }
@@ -74,7 +80,7 @@ export function errorKind(err) {
   }
   if (
     UNREACHABLE_CODES.has(code) ||
-    /timeout|socket closed|closed unexpectedly|client is closed|connection is closed/i.test(
+    /timeout|socket closed|closed unexpectedly|client is closed|client is offline|disconnects client|connection is closed|ClientClosed|ClientOffline|DisconnectsClient|SocketClosed/i.test(
       `${err?.name ?? ''} ${err?.constructor?.name ?? ''} ${message}`,
     )
   ) {
@@ -111,6 +117,8 @@ export class RedisConnection {
     this.connecting = null;
     this.subscriber = null;
     this.subscribed = new Set();
+    this.subscribing = Promise.resolve();
+    this.closed = false;
   }
 
   clientOptions() {
@@ -124,7 +132,14 @@ export class RedisConnection {
         port,
         connectTimeout: CONNECT_TIMEOUT_MS,
         reconnectStrategy: false,
-        ...(tls ? { tls: true, rejectUnauthorized: !allowSelfSigned, servername: host } : {}),
+        ...(tls
+          ? {
+              tls: true,
+              rejectUnauthorized: !allowSelfSigned,
+              // SNI takes a host name, never an IP address (DEP0123).
+              ...(isIP(host) ? {} : { servername: host }),
+            }
+          : {}),
       },
     };
   }
@@ -135,6 +150,9 @@ export class RedisConnection {
 
   /** Connect when not connected (the last connection was lost). */
   async ensureConnected() {
+    if (this.closed) {
+      throw new RedisError(ERROR_KINDS.UNREACHABLE, 'Connection closed');
+    }
     if (this.connected) {
       return this.client;
     }
@@ -154,6 +172,10 @@ export class RedisConnection {
     } catch (err) {
       destroy(client);
       throw asRedisError(err);
+    }
+    if (this.closed) {
+      destroy(client); // closed while connecting
+      throw new RedisError(ERROR_KINDS.UNREACHABLE, 'Connection closed');
     }
     this.client = client;
     return client;
@@ -177,8 +199,15 @@ export class RedisConnection {
    * Follow exactly these channels (SUBSCRIBE, never a pattern), calling
    * `listener(message, channel)`. An empty list closes the subscriber.
    */
-  async subscribe(channels, listener) {
-    const wanted = new Set(channels);
+  subscribe(channels, listener) {
+    // One change at a time: two concurrent calls would each open a subscriber.
+    const next = this.subscribing.then(() => this.applySubscriptions(channels, listener));
+    this.subscribing = next.catch(() => {});
+    return next;
+  }
+
+  async applySubscriptions(channels, listener) {
+    const wanted = new Set(this.closed ? [] : channels);
     if (wanted.size === 0) {
       this.dropSubscriber();
       return;
@@ -193,6 +222,10 @@ export class RedisConnection {
       } catch (err) {
         destroy(subscriber);
         throw asRedisError(err);
+      }
+      if (this.closed) {
+        destroy(subscriber);
+        return;
       }
       this.subscriber = subscriber;
     }
@@ -214,10 +247,6 @@ export class RedisConnection {
     }
   }
 
-  get subscribing() {
-    return Boolean(this.subscriber?.isReady);
-  }
-
   dropSubscriber() {
     destroy(this.subscriber);
     this.subscriber = null;
@@ -230,7 +259,9 @@ export class RedisConnection {
     this.client = null;
   }
 
+  /** For good: no command reconnects a closed connection. */
   close() {
+    this.closed = true;
     this.drop();
   }
 }

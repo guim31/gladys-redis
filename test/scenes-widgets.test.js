@@ -47,7 +47,7 @@ test('write, with an expiry, a string and a hash field; the device follows', asy
     expire_seconds: 60,
   });
   assert.equal(ack.success, true, ack.error);
-  assert.deepEqual(w.redis.commands[commands], ['SET', 'alarm:state', 'disarmed', 'EX', '60']);
+  assert.deepEqual(w.redis.commands[commands + 1], ['SET', 'alarm:state', 'disarmed', 'EX', '60']);
   assert.equal(
     w.fake.lastState(
       w.fake.discoveredDevices.find((d) => d.name === 'alarm:state').features[0].external_id,
@@ -77,7 +77,7 @@ test('only the keys followed are written, never a list or the server', async (t)
     device: keyDevice(w.gladys, 'queue:jobs'),
     value: 'x',
   });
-  assert.match(ack.error, /only a string or a hash field/);
+  assert.match(ack.error, /only a string, or a hash field added with its field/);
   ack = await w.fake.sceneAction('set_value', { device: serverDevice(w.gladys), value: 'x' });
   assert.match(ack.error, /Choose a key device/);
   ack = await w.fake.sceneAction('set_value', {
@@ -86,6 +86,24 @@ test('only the keys followed are written, never a list or the server', async (t)
   });
   assert.match(ack.error, /Choose a key device/);
   assert.equal(w.redis.data.get('queue:jobs').type, 'list');
+  // A hash added without its field is never replaced by a string.
+  await addKey(w, { key: 'meter:linky' });
+  ack = await w.fake.sceneAction('set_value', {
+    device: keyDevice(w.gladys, 'meter:linky'),
+    value: 'x',
+  });
+  assert.match(ack.error, /another type of value/);
+  ack = await w.fake.sceneAction('increment', { device: keyDevice(w.gladys, 'meter:linky') });
+  assert.match(ack.error, /another type of value/);
+  assert.equal(w.redis.data.get('meter:linky').type, 'hash');
+  // A key whose type changed since the last read is checked again.
+  await addKey(w, { key: 'visits' });
+  w.redis.list('visits', ['a']);
+  ack = await w.fake.sceneAction('set_value', {
+    device: keyDevice(w.gladys, 'visits'),
+    value: 'x',
+  });
+  assert.match(ack.error, /another type of value/);
 });
 
 test('increment returns the new value, comma decimals accepted', async (t) => {

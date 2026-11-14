@@ -300,10 +300,10 @@ export const ACTION_TEXT = {
     es: 'Elija un dispositivo clave de la integración (una clave añadida con «Añadir una clave»).',
   },
   notWritable: {
-    en: 'This key holds a list, a set or a stream: only a string or a hash field can be written.',
-    fr: "Cette clé contient une liste, un ensemble ou un flux : seule une chaîne ou un champ de hash s'écrit.",
-    de: 'Dieser Schlüssel enthält eine Liste, eine Menge oder einen Stream: Nur ein String oder ein Hash-Feld ist schreibbar.',
-    es: 'Esta clave contiene una lista, un conjunto o un flujo: solo se escribe una cadena o un campo de hash.',
+    en: 'This key holds another type of value: only a string, or a hash field added with its field, can be written.',
+    fr: "Cette clé contient un autre type de valeur : seule une chaîne, ou un champ de hash ajouté avec son champ, s'écrit.",
+    de: 'Dieser Schlüssel enthält einen anderen Werttyp: Nur ein String oder ein mit seinem Feld hinzugefügtes Hash-Feld ist schreibbar.',
+    es: 'Esta clave contiene otro tipo de valor: solo se escribe una cadena, o un campo de hash añadido con su campo.',
   },
   badNumber: {
     en: 'The increment is not a number.',

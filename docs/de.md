@@ -54,7 +54,7 @@ Ein ACL-Benutzer muss nur die hinzugefügten Schlüssel lesen können. Zum
 Beispiel nur lesend:
 `ACL SETUSER gladys on >passwort ~sensors:* +@read +info +dbsize +ping +hello +select +type`,
 dazu `+@write +publish &*`, um aus Szenen zu schreiben und zu veröffentlichen,
-und `+subscribe` für die Benachrichtigungen.
+und `+subscribe &__keyspace@0__:*` für die Benachrichtigungen.
 
 ### Keyspace-Benachrichtigungen
 

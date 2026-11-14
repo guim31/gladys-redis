@@ -11,7 +11,7 @@
 
 import { createLogger } from '@gladysassistant/integration-sdk';
 import { parseKeyId } from './devices.js';
-import { LENGTH_COMMANDS, keyLabel, parseNumber } from './keys.js';
+import { keyLabel, parseNumber } from './keys.js';
 import { ERROR_KINDS, asRedisError, replyText } from './redis/client.js';
 import { ACTION_TEXT, ERROR_TEXT, labelled, pick } from './texts.js';
 
@@ -42,10 +42,20 @@ function chosenKey(hub, fields, language) {
   if (!spec) {
     fail(ACTION_TEXT.unknownKey, language);
   }
-  if (LENGTH_COMMANDS[hub.readings.get(spec.id)?.redisType]) {
+  return spec;
+}
+
+/**
+ * The type of the key, read just before writing: a string (or a hash, when
+ * the key was added with a field), or no key yet. Anything else — a hash
+ * added without a field, a list, a module type — is never overwritten.
+ */
+async function checkWritable(hub, spec, language) {
+  const [type] = await run(hub, [['TYPE', spec.key]], language);
+  const allowed = spec.field ? ['hash', 'none'] : ['string', 'none'];
+  if (!allowed.includes(replyText(type) ?? 'none')) {
     fail(ACTION_TEXT.notWritable, language);
   }
-  return spec;
 }
 
 /** Run the commands; a Redis error in the language of the configuration. */
@@ -65,10 +75,15 @@ async function run(hub, commands, language) {
 
 /** The expiry field: null when empty or 0, a whole number of seconds otherwise. */
 function expiry(value, language) {
-  if (value === undefined || value === null || value === '' || value === 0) {
+  const seconds =
+    value === undefined || value === null || value === ''
+      ? 0
+      : typeof value === 'number'
+        ? value
+        : parseNumber(String(value));
+  if (seconds === 0) {
     return null;
   }
-  const seconds = typeof value === 'number' ? value : parseNumber(String(value));
   if (!Number.isInteger(seconds) || seconds < 1 || seconds > MAX_EXPIRE_SECONDS) {
     fail(ACTION_TEXT.badExpire, language);
   }
@@ -89,6 +104,7 @@ export const SCENE_ACTIONS = {
       fail(ACTION_TEXT.tooLong, language);
     }
     const seconds = expiry(fields.expire_seconds, language);
+    await checkWritable(hub, spec, language);
     const commands = spec.field
       ? [['HSET', spec.key, spec.field, value], ...(seconds ? [['EXPIRE', spec.key, seconds]] : [])]
       : [['SET', spec.key, value, ...(seconds ? ['EX', seconds] : [])]];
@@ -110,6 +126,7 @@ export const SCENE_ACTIONS = {
     if (by === null || !Number.isFinite(by)) {
       fail(ACTION_TEXT.badNumber, language);
     }
+    await checkWritable(hub, spec, language);
     const command = spec.field
       ? ['HINCRBYFLOAT', spec.key, spec.field, by]
       : ['INCRBYFLOAT', spec.key, by];

@@ -55,7 +55,7 @@ Un usuario ACL solo necesita leer las claves añadidas. Por ejemplo, solo
 lectura:
 `ACL SETUSER gladys on >contraseña ~sensors:* +@read +info +dbsize +ping +hello +select +type`,
 más `+@write +publish &*` para escribir y publicar desde las escenas, y
-`+subscribe` para las notificaciones.
+`+subscribe &__keyspace@0__:*` para las notificaciones.
 
 ### Notificaciones keyspace
 

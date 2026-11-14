@@ -337,3 +337,49 @@ test('the container reads on its own timer, without any onPoll from Gladys', asy
   assert.ok(w.redis.commands.filter(([name]) => name === 'INFO').length > reads);
   assert.equal(w.fake.lastState(featureOf(w, 'visits', 'number')), 50);
 });
+
+test('a key changing all the time is still read (throttle), and events are budgeted', async (t) => {
+  const w = await world(t, {
+    config: { ...BASE_CONFIG, keyspace_notifications: true },
+    timings: { notifyDelayMs: 30 },
+  });
+  await addKey(w, { key: 'visits' });
+  const gets = () =>
+    w.redis.commands.filter(([name, key]) => name === 'GET' && key === 'visits').length;
+  const before = gets();
+  for (let count = 0; count < 15; count += 1) {
+    w.redis.set('visits', String(count));
+    w.redis.touch('visits', 'incrby');
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  assert.ok(gets() > before, 'read while it keeps changing');
+  await settle();
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.ok(w.fake.sceneEvents.length >= 2 && w.fake.sceneEvents.length <= 8);
+  assert.equal(w.fake.sceneEvents.at(-1).data.value, '14');
+});
+
+test('a huge number is not a state (Infinity would break the batch)', async (t) => {
+  const w = await world(t);
+  w.redis.set('visits', '1e303');
+  assert.match(await addKey(w, { key: 'visits', type: 'number' }), /the value is not a number/);
+});
+
+test('a closed connection never reconnects', async (t) => {
+  const w = await world(t);
+  const connection = w.hub.connection;
+  connection.close();
+  await assert.rejects(connection.command(['PING']), /closed/);
+  assert.equal(connection.client, null);
+});
+
+test('the server-wide replies and the closed-client errors are not key errors', () => {
+  assert.equal(
+    errorKind(new Error('LOADING Redis is loading the dataset in memory')),
+    'unreachable',
+  );
+  const disconnected = new Error('Disconnects client');
+  disconnected.name = 'DisconnectsClientError';
+  assert.equal(errorKind(disconnected), 'unreachable');
+  assert.equal(errorKind(new Error('The client is offline')), 'unreachable');
+});

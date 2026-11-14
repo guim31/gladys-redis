@@ -64,15 +64,18 @@ export const HUB_TIMINGS = {
   // An unchanged value is sent again this often: Gladys marks a value older
   // than 48 h as outdated.
   heartbeatMs: 6 * 3600_000,
-  // Notifications of the same key within this delay make one read (a
-  // counter incremented 100 times a second is read a few times a second).
-  notifyDelayMs: 250,
+  // A notification starts a read after this delay, and the others of the
+  // same key meanwhile join it (a throttle: a counter incremented 100 times
+  // a second is read once a second, never starved).
+  notifyDelayMs: 1000,
 };
 
 const MAX_STATES_PER_REQUEST = 100;
 // States per minute, at most (Gladys accepts 300): the budget of a read is
 // its share of the minute; the values published longest ago go first.
 export const MAX_STATES_PER_MINUTE = 240;
+// Scene events per minute, at most ("A Redis key changes").
+export const MAX_EVENTS_PER_MINUTE = 120;
 const KEY_CONCURRENCY = 5;
 // Key errors that are the key's own (the others are the server's).
 const KEY_ERRORS = new Set([ERROR_KINDS.PERMISSION, ERROR_KINDS.WRONG_TYPE, ERROR_KINDS.OTHER]);
@@ -198,9 +201,10 @@ export class RedisHub {
   async stop() {
     this.stopped = true;
     clearTimeout(this.pollTimer);
-    for (const timer of this.notifyTimers.values()) {
-      clearTimeout(timer);
+    for (const pending of this.notifyTimers.values()) {
+      clearTimeout(pending.timer);
     }
+    this.notifyTimers.clear();
     this.connection?.close();
     await this.store.flush();
   }
@@ -401,14 +405,21 @@ export class RedisHub {
     }
     logger.debug(`Keyspace: ${key} ${event}`);
     const pending = this.notifyTimers.get(key);
-    clearTimeout(pending?.timer);
-    const timer = setTimeout(() => {
+    if (pending) {
+      pending.event = event; // the read already planned says the last event
+      return;
+    }
+    if (this.stopped) {
+      return;
+    }
+    const entry = { event };
+    entry.timer = setTimeout(() => {
       this.notifyTimers.delete(key);
-      this.refreshKey(key, event).catch((err) =>
+      this.refreshKey(key, entry.event).catch((err) =>
         this.failureLog.fail('notify', `Reading after a notification failed: ${err.message}`),
       );
     }, this.timings.notifyDelayMs);
-    this.notifyTimers.set(key, { timer });
+    this.notifyTimers.set(key, entry);
   }
 
   /**
@@ -443,6 +454,18 @@ export class RedisHub {
   }
 
   async fireKeyEvent(spec, event) {
+    // Gladys evaluates the scenes at every event: a sliding minute budget.
+    const now = this.now();
+    this.eventTimes = (this.eventTimes ?? []).filter((time) => now - time < 60_000);
+    if (this.eventTimes.length >= MAX_EVENTS_PER_MINUTE) {
+      this.failureLog.fail(
+        'event-budget',
+        `More than ${MAX_EVENTS_PER_MINUTE} key events a minute: some are dropped`,
+      );
+      return;
+    }
+    this.failureLog.recover('event-budget');
+    this.eventTimes.push(now);
     const { state } = keyState(spec.type, this.readings.get(spec.id));
     const value = state === null ? '' : typeof state === 'object' ? state.text : String(state);
     try {
@@ -574,10 +597,10 @@ export class RedisHub {
         same(externalId, value) &&
         now - (this.publishedAt.get(externalId) ?? 0) >= this.timings.heartbeatMs,
     );
-    const budget = Math.max(
-      10,
-      Math.floor((MAX_STATES_PER_MINUTE * (this.config?.pollIntervalMs ?? 60_000)) / 60_000),
-    );
+    // One budget over the last minute for every path (timer, notifications,
+    // actions, widget): Gladys accepts 300 states a minute.
+    this.sentTimes = (this.sentTimes ?? []).filter((time) => now - time < 60_000);
+    const budget = Math.max(0, MAX_STATES_PER_MINUTE - this.sentTimes.length);
     const age = ({ externalId }) => this.publishedAt.get(externalId) ?? 0;
     const states = [...changed.sort((a, b) => age(a) - age(b)), ...due]
       .slice(0, force ? Infinity : budget)
@@ -596,6 +619,7 @@ export class RedisHub {
         for (const { externalId, value } of batch) {
           this.published.set(externalId, value);
           this.publishedAt.set(externalId, now);
+          this.sentTimes.push(now);
         }
         this.failureLog.recover('states', 'States accepted again');
       } catch (err) {

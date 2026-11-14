@@ -229,5 +229,10 @@ export function keyState(type, reading) {
       problem: reading.raw?.trim() ? KEY_PROBLEMS.NOT_NUMBER : KEY_PROBLEMS.EMPTY,
     };
   }
-  return { state: round(number), problem: null };
+  const rounded = round(number);
+  // 1e303 parses, but rounds to Infinity: JSON null, a refused batch.
+  if (!Number.isFinite(rounded)) {
+    return { state: null, problem: KEY_PROBLEMS.NOT_NUMBER };
+  }
+  return { state: rounded, problem: null };
 }

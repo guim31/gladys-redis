@@ -50,7 +50,7 @@ what is wrong.
 
 An ACL user only needs to read the keys you add. For example, read only:
 `ACL SETUSER gladys on >password ~sensors:* +@read +info +dbsize +ping +hello +select +type`,
-plus `+@write +publish &*` to write and publish from scenes, and `+subscribe` for
+plus `+@write +publish &*` to write and publish from scenes, and `+subscribe &__keyspace@0__:*` for
 the notifications.
 
 ### Keyspace notifications

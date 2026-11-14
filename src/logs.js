@@ -4,13 +4,13 @@
 //
 // Used for what fails again at every reading cycle: Gladys refusing states,
 // transports or the connection status, a failing reading loop, /data that
-// cannot be written. (An InfluxDB that does not answer is already reported once
-// per kind of error by the hub.)
+// cannot be written. (A Redis that does not answer is reported once per kind
+// of error by the hub.)
 // -----------------------------------------------------------------------------
 
 import { createLogger } from '@gladysassistant/integration-sdk';
 
-const defaultLogger = createLogger({ name: 'influxdb' });
+const defaultLogger = createLogger({ name: 'redis' });
 
 export class FailureLog {
   /** @param {{ debug: Function, info: Function, warn: Function, error: Function }} [log] */

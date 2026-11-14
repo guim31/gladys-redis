@@ -55,7 +55,7 @@ Un utilisateur ACL n'a besoin que de lire les clés ajoutées. Par exemple, en
 lecture seule :
 `ACL SETUSER gladys on >motdepasse ~sensors:* +@read +info +dbsize +ping +hello +select +type`,
 plus `+@write +publish &*` pour écrire et publier depuis les scènes, et
-`+subscribe` pour les notifications.
+`+subscribe &__keyspace@0__:*` pour les notifications.
 
 ### Notifications keyspace
 
