@@ -9,7 +9,8 @@ A Gladys Assistant **external integration**: a Node.js service (Node 22+, ESM,
 no build step) that runs in its own sandboxed Docker container and talks to
 Gladys through
 [`@gladysassistant/integration-sdk`](https://github.com/GladysAssistant/integration-sdk-js),
-its only runtime dependency. It started from the official JavaScript template.
+with `@redis/client` (node-redis, no dependency of its own) as the Redis
+client. It started from the official JavaScript template.
 
 ## Commands
 
@@ -32,15 +33,20 @@ pushing.
 
 ```
 index.js                          SDK wiring only: handlers registered before connect()
-src/devices/index.js              registry of the device blueprints + dispatch helpers
-src/devices/<type>.js             one device type per file (buildDevice, onPoll, onSetValue...)
-src/scenes.js                     scene action handlers (manifest `scene_actions`)
-src/widgets.js                    dashboard widget handlers (manifest `widgets`)
+src/app.js                        every SDK handler on the hub (the tests use the same wiring)
+src/hub.js                        RedisHub: reads, notifications, states, devices, config actions
+src/redis/client.js               RedisConnection over @redis/client: deadlines, error kinds, subscriber
+src/redis/info.js                 INFO parsing (Redis and Valkey)
+src/keys.js                       keys followed: types, ids, reading by Redis type, states
+src/devices.js                    discovery payloads: one device per key, the server device
+src/scenes.js                     scene actions: set_value, increment, publish
+src/widgets.js                    dashboard widget `values`
 src/config.js                     DEFAULT_CONFIG (mirrors the manifest defaults) + normalization
-src/weather.js                    example driver (Open-Meteo)
+src/store.js, src/logs.js         /data persistence (keys), one log line per failure and recovery
+src/texts.js                      every text sent to Gladys, in en/fr/de/es
 gladys-assistant-integration.json manifest: name, config_schema, actions, image...
-docs/en.md, docs/fr.md            user documentation, re-hosted by Gladys (mandatory)
-test/                             node --test, against the SDK's fake Gladys (integration-sdk/testing)
+docs/{en,fr,de,es}.md             user documentation, re-hosted by Gladys (mandatory)
+test/                             node --test, fake Redis (test/helpers) + the SDK's fake Gladys
 .github/scripts/release.mjs       release helpers (manifest bump, changelog), tested in test/
 ```
 
@@ -251,3 +257,24 @@ long, et sur un « Sie »/« Ihr… » de politesse en allemand. Le store exige 
 - Docs `en`, `fr`, `de`, `es` avec les mêmes sections.
 - Chauffe, ouverture, sécurité : ne rien rendre pilotable « comme un thermostat » ou par un assistant
   vocal quand une erreur serait dangereuse (leçon d'OctoPrint).
+
+## Redis (propre à cette intégration)
+
+- **Client** : `@redis/client` seul (le paquet `redis` tire aussi les modules bloom, json, search…), sans
+  reconnexion automatique (`reconnectStrategy: false`) : le hub se reconnecte à la lecture suivante, une tentative
+  par intervalle. Chaque commande a un délai (5 s) : un serveur muet ne bloque ni les lectures ni une scène. Un
+  écouteur `error` est obligatoire, sinon l'événement tue le processus.
+- Le client envoie `HELLO` : un serveur à mot de passe interrogé sans mot de passe répond `NOAUTH HELLO must be
+called…`, à classer en « accès refusé ». Un hôte absent donne `ConnectionTimeoutError` plutôt que `ENOTFOUND`
+  dans Docker ; TLS sur un port en clair : simple délai dépassé.
+- Valkey répond `redis_version:7.2.4` pour compatibilité : sa vraie version est `valkey_version`.
+- Clés suivies : jamais de motif, jamais de `SCAN`/`KEYS` ; `TYPE` puis une commande par clé. Une clé refusée par
+  les ACL (`NOPERM`) ou d'un autre type (`WRONGTYPE`) est le problème de la clé, pas du serveur.
+- Notifications keyspace : `SUBSCRIBE` sur le canal exact `__keyspace@<db>__:<clé>` (connexion dédiée), jamais
+  `CONFIG SET` à la place de l'utilisateur ; `CONFIG GET` n'est lu que par « Tester la connexion » (souvent refusé
+  par les ACL, c'est dit).
+- **État texte** : `publishStates` attend `{ device_feature_external_id, text }` pour un `text/text`, pas
+  `state: { text }`. Un état `NaN` est refusé par le SDK (trouvé contre Valkey : clé refusée par les ACL), d'où la
+  garde dans `keyState` et le test qui la fige.
+- Les actions de configuration n'ont aucun champ `required` (le cœur n'applique pas leurs `default`) : « Ajouter une
+  clé » sans type vaut « Automatique ».

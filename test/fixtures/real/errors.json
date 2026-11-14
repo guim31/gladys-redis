@@ -1,0 +1,11 @@
+{
+  "_source": "Replies of Redis 7.4.12 and Valkey 8.1.11 (Docker), through @redis/client",
+  "noauth": "NOAUTH HELLO must be called with the client already authenticated, otherwise the HELLO <proto> AUTH <user> <pass> option can be used to authenticate the client and select the RESP protocol version at the same time",
+  "wrongpass": "WRONGPASS invalid username-password pair or user is disabled.",
+  "noperm_key": "NOPERM No permissions to access a key",
+  "noperm_command": "NOPERM User gladys has no permissions to run the 'config|get' command",
+  "wrongtype": "WRONGTYPE Operation against a key holding the wrong kind of value",
+  "database": "ERR DB index is out of range",
+  "refused": "connect ECONNREFUSED 192.0.2.30:6380",
+  "timeout": "Connection timeout"
+}
