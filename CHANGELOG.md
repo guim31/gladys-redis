@@ -10,6 +10,8 @@ the notes of the version's GitHub Release.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-14
+
 ### Added
 
 - Redis and Valkey keys as Gladys sensors, added with "Add a key": a string or
@@ -28,4 +30,5 @@ the notes of the version's GitHub Release.
 - Password, ACL user, TLS and database number; texts and documentation in
   English, French, German and Spanish.
 
-[Unreleased]: https://github.com/guim31/gladys-redis/commits/main
+[Unreleased]: https://github.com/guim31/gladys-redis/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/guim31/gladys-redis/releases/tag/v1.0.0
