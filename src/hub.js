@@ -200,6 +200,7 @@ export class RedisHub {
 
   async stop() {
     this.stopped = true;
+    this.generation += 1; // a read in progress is ignored, not reported as an outage
     clearTimeout(this.pollTimer);
     for (const pending of this.notifyTimers.values()) {
       clearTimeout(pending.timer);
@@ -406,16 +407,16 @@ export class RedisHub {
     logger.debug(`Keyspace: ${key} ${event}`);
     const pending = this.notifyTimers.get(key);
     if (pending) {
-      pending.event = event; // the read already planned says the last event
+      pending.events.add(event); // joins the read already planned
       return;
     }
     if (this.stopped) {
       return;
     }
-    const entry = { event };
+    const entry = { events: new Set([event]) };
     entry.timer = setTimeout(() => {
       this.notifyTimers.delete(key);
-      this.refreshKey(key, entry.event).catch((err) =>
+      this.refreshKey(key, [...entry.events]).catch((err) =>
         this.failureLog.fail('notify', `Reading after a notification failed: ${err.message}`),
       );
     }, this.timings.notifyDelayMs);
@@ -424,9 +425,9 @@ export class RedisHub {
 
   /**
    * Read the keys of this Redis key now and publish them; fire the scene
-   * event when a notification said what happened.
+   * event once per kind of event the notifications said (set, del…).
    */
-  async refreshKey(key, event = null) {
+  async refreshKey(key, events = []) {
     const specs = [...this.keys.values()].filter((spec) => spec.key === key);
     const { generation } = this;
     const before = this.widgetSignature();
@@ -443,7 +444,7 @@ export class RedisHub {
       }
       this.setReading(spec.id, reading);
       await this.sendStates(this.valuesOfCreated([spec]));
-      if (event) {
+      for (const event of events) {
         await this.fireKeyEvent(spec, event);
       }
     }
