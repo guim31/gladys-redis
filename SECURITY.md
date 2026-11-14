@@ -30,6 +30,24 @@ Gladys before reporting a problem.
 
 In scope: the code of this repository and the Docker image it publishes.
 
+What the integration handles:
+
+- **Secrets**: the Redis password is a `secret` field of the Gladys
+  configuration. The integration reads it from Gladys at startup, keeps it in
+  memory, sends it only to the Redis server of the configuration, and never
+  writes it to `/data` nor to the logs. An address with credentials inside
+  (`redis://user:pass@…`) is refused, so that none ends up in a log line. An
+  ACL user limited to the keys followed is recommended.
+- **Stored in `/data`**: `redis-state.json`, the keys added by the user (key
+  name, hash field, type, display name). No secret, no value.
+- **Writes**: none unless the user ticks "Allow writing from scenes"; then only
+  `SET`, `HSET`, `EXPIRE`, `INCRBYFLOAT` and `HINCRBYFLOAT` on the keys
+  followed, and `PUBLISH` on the channels listed in the configuration. The
+  integration never scans the database and never changes the server
+  configuration.
+- **Network**: one connection (two with the keyspace notifications) to the
+  address of the configuration only, TLS on request.
+
 Out of scope: Gladys Assistant itself (see its
 [security policy](https://github.com/GladysAssistant/Gladys/security/policy)),
-and the third-party services and devices the integration talks to.
+and the Redis or Valkey server the integration talks to.

@@ -1,147 +1,701 @@
 {
   "manifest_version": 1,
   "type": "device",
-  "name": "Demo Devices Template",
+  "name": "Redis",
   "description": {
-    "en": "Starter template showing sensors, a switch, a dimmable light and a smart plug.",
-    "fr": "Template de démarrage : capteurs, interrupteur, lampe variable et prise connectée."
+    "en": "Redis or Valkey keys as Gladys sensors, and writes from your scenes.",
+    "fr": "Des clés Redis ou Valkey en capteurs Gladys, et l'écriture depuis vos scènes.",
+    "de": "Redis- oder Valkey-Schlüssel als Gladys-Sensoren, und Schreiben aus deinen Szenen.",
+    "es": "Claves de Redis o Valkey como sensores de Gladys, y escritura desde sus escenas."
   },
   "version": "1.0.0",
-  "docker_image": "ghcr.io/gladysassistant/integration-template-js:1.0.0",
+  "docker_image": "ghcr.io/guim31/gladys-redis:1.0.0",
   "gladys_version": ">=5.1.0",
-  "cover_image": "https://raw.githubusercontent.com/GladysAssistant/integration-template-js/master/cover.png",
-  "categories": ["lighting", "security", "environment"],
-  "transports": ["local", "cloud"],
+  "cover_image": "https://raw.githubusercontent.com/guim31/gladys-redis/main/cover.png",
+  "categories": ["servers", "protocols"],
+  "transports": ["local"],
   "config_schema": [
     {
       "key": "intro",
       "type": "section",
-      "label": { "en": "Getting started", "fr": "Pour commencer" },
+      "label": {
+        "en": "Your Redis server",
+        "fr": "Votre serveur Redis",
+        "de": "Dein Redis-Server",
+        "es": "Su servidor Redis"
+      },
       "description": {
-        "en": "The demo weather station reads real data from the free Open-Meteo API: pick the coordinates to observe. No account, no API key.",
-        "fr": "La station météo de démonstration lit de vraies données via l'API gratuite Open-Meteo : choisissez les coordonnées à observer. Pas de compte, pas de clé d'API."
+        "en": "Redis 6 or later, or Valkey. Enter its address, then add the keys to follow with \"Add a key\" below, and their devices from the Discover tab.",
+        "fr": "Redis 6 ou plus récent, ou Valkey. Saisissez son adresse, puis ajoutez les clés à suivre avec « Ajouter une clé » ci-dessous, et leurs appareils depuis l'onglet Découverte.",
+        "de": "Redis 6 oder neuer, oder Valkey. Gib seine Adresse ein, füge dann die zu verfolgenden Schlüssel mit „Schlüssel hinzufügen“ unten hinzu und ihre Geräte im Tab „Entdecken“.",
+        "es": "Redis 6 o posterior, o Valkey. Introduzca su dirección, después añada las claves que quiera seguir con «Añadir una clave» más abajo, y sus dispositivos desde la pestaña Descubrir."
       },
       "links": [
         {
-          "url": "https://open-meteo.com/en/docs",
-          "label": { "en": "Open-Meteo documentation", "fr": "Documentation Open-Meteo" }
+          "url": "https://github.com/guim31/gladys-redis/blob/main/docs/en.md",
+          "label": {
+            "en": "Setup guide",
+            "fr": "Guide d'installation",
+            "de": "Installationsanleitung",
+            "es": "Guía de instalación"
+          }
         }
       ]
     },
     {
-      "key": "latitude",
-      "type": "number",
-      "label": { "en": "Latitude", "fr": "Latitude" },
-      "description": {
-        "en": "Latitude used for the demo weather sensor.",
-        "fr": "Latitude utilisée par le capteur météo de démonstration."
-      },
-      "placeholder": { "en": "e.g. 48.8566", "fr": "ex. 48.8566" },
+      "key": "host",
+      "type": "string",
       "required": true,
-      "default": 48.8566,
-      "min": -90,
-      "max": 90
+      "label": {
+        "en": "Address",
+        "fr": "Adresse",
+        "de": "Adresse",
+        "es": "Dirección"
+      },
+      "description": {
+        "en": "Name or IP address of the server, as seen from Gladys (not localhost).",
+        "fr": "Nom ou adresse IP du serveur, vu depuis Gladys (pas localhost).",
+        "de": "Name oder IP-Adresse des Servers, von Gladys aus gesehen (nicht localhost).",
+        "es": "Nombre o dirección IP del servidor, visto desde Gladys (no localhost)."
+      },
+      "placeholder": {
+        "en": "e.g. 192.168.1.20",
+        "fr": "ex. 192.168.1.20",
+        "de": "z. B. 192.168.1.20",
+        "es": "p. ej. 192.168.1.20"
+      }
     },
     {
-      "key": "longitude",
+      "key": "port",
       "type": "number",
-      "label": { "en": "Longitude", "fr": "Longitude" },
-      "description": {
-        "en": "Longitude used for the demo weather sensor.",
-        "fr": "Longitude utilisée par le capteur météo de démonstration."
-      },
-      "placeholder": { "en": "e.g. 2.3522", "fr": "ex. 2.3522" },
-      "required": true,
-      "default": 2.3522,
-      "min": -180,
-      "max": 180
+      "required": false,
+      "default": 6379,
+      "min": 1,
+      "max": 65535,
+      "label": {
+        "en": "Port",
+        "fr": "Port",
+        "de": "Port",
+        "es": "Puerto"
+      }
     },
     {
-      "key": "unit",
+      "key": "database",
+      "type": "number",
+      "required": false,
+      "default": 0,
+      "min": 0,
+      "max": 1000,
+      "label": {
+        "en": "Database number",
+        "fr": "Numéro de base",
+        "de": "Datenbanknummer",
+        "es": "Número de base de datos"
+      },
+      "description": {
+        "en": "0 unless your scripts write elsewhere (SELECT).",
+        "fr": "0, sauf si vos scripts écrivent ailleurs (SELECT).",
+        "de": "0, außer deine Skripte schreiben woanders hin (SELECT).",
+        "es": "0, salvo que sus scripts escriban en otra (SELECT)."
+      }
+    },
+    {
+      "key": "username",
+      "type": "string",
+      "required": false,
+      "label": {
+        "en": "User (ACL, optional)",
+        "fr": "Utilisateur (ACL, facultatif)",
+        "de": "Benutzer (ACL, optional)",
+        "es": "Usuario (ACL, opcional)"
+      },
+      "description": {
+        "en": "Empty with a plain requirepass password.",
+        "fr": "Vide avec un simple mot de passe requirepass.",
+        "de": "Leer bei einem einfachen requirepass-Passwort.",
+        "es": "Vacío con una simple contraseña requirepass."
+      }
+    },
+    {
+      "key": "password",
+      "type": "secret",
+      "required": false,
+      "label": {
+        "en": "Password (optional)",
+        "fr": "Mot de passe (facultatif)",
+        "de": "Passwort (optional)",
+        "es": "Contraseña (opcional)"
+      }
+    },
+    {
+      "key": "tls",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "label": {
+        "en": "TLS connection",
+        "fr": "Connexion TLS",
+        "de": "TLS-Verbindung",
+        "es": "Conexión TLS"
+      }
+    },
+    {
+      "key": "allow_self_signed",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "label": {
+        "en": "Accept self-signed certificates",
+        "fr": "Accepter les certificats auto-signés",
+        "de": "Selbstsignierte Zertifikate akzeptieren",
+        "es": "Aceptar certificados autofirmados"
+      }
+    },
+    {
+      "key": "options",
+      "type": "section",
+      "label": {
+        "en": "Reading and writing",
+        "fr": "Lecture et écriture",
+        "de": "Lesen und Schreiben",
+        "es": "Lectura y escritura"
+      }
+    },
+    {
+      "key": "poll_interval",
       "type": "select",
-      "label": { "en": "Temperature unit", "fr": "Unité de température" },
       "required": false,
-      "default": "celsius",
+      "default": "30",
       "options": [
-        { "value": "celsius", "label": { "en": "Celsius", "fr": "Celsius" } },
-        { "value": "fahrenheit", "label": { "en": "Fahrenheit", "fr": "Fahrenheit" } }
-      ]
+        {
+          "value": "10",
+          "label": {
+            "en": "10 seconds",
+            "fr": "10 secondes",
+            "de": "10 Sekunden",
+            "es": "10 segundos"
+          }
+        },
+        {
+          "value": "30",
+          "label": {
+            "en": "30 seconds",
+            "fr": "30 secondes",
+            "de": "30 Sekunden",
+            "es": "30 segundos"
+          }
+        },
+        {
+          "value": "60",
+          "label": {
+            "en": "1 minute",
+            "fr": "1 minute",
+            "de": "1 Minute",
+            "es": "1 minuto"
+          }
+        },
+        {
+          "value": "300",
+          "label": {
+            "en": "5 minutes",
+            "fr": "5 minutes",
+            "de": "5 Minuten",
+            "es": "5 minutos"
+          }
+        },
+        {
+          "value": "600",
+          "label": {
+            "en": "10 minutes",
+            "fr": "10 minutes",
+            "de": "10 Minuten",
+            "es": "10 minutos"
+          }
+        }
+      ],
+      "label": {
+        "en": "Refresh interval",
+        "fr": "Intervalle de rafraîchissement",
+        "de": "Aktualisierungsintervall",
+        "es": "Intervalo de actualización"
+      },
+      "description": {
+        "en": "How often the keys are read: two commands per key.",
+        "fr": "Fréquence de lecture des clés : deux commandes par clé.",
+        "de": "Wie oft die Schlüssel gelesen werden: zwei Befehle pro Schlüssel.",
+        "es": "Con qué frecuencia se leen las claves: dos comandos por clave."
+      }
     },
     {
-      "key": "poll_frequency",
-      "type": "number",
-      "label": { "en": "Refresh interval (s)", "fr": "Intervalle de rafraîchissement (s)" },
-      "description": {
-        "en": "How often sensors are polled, in seconds (one minute minimum).",
-        "fr": "Fréquence d'interrogation des capteurs, en secondes (une minute minimum)."
-      },
+      "key": "keyspace_notifications",
+      "type": "boolean",
       "required": false,
-      "default": 300,
-      "min": 60,
-      "max": 3600
+      "default": false,
+      "label": {
+        "en": "Follow keyspace notifications",
+        "fr": "Suivre les notifications keyspace",
+        "de": "Keyspace-Benachrichtigungen verfolgen",
+        "es": "Seguir las notificaciones keyspace"
+      },
+      "description": {
+        "en": "A key is read as soon as it changes. The server must send them (notify-keyspace-events, see the guide): the integration never changes it.",
+        "fr": "Une clé est relue dès qu'elle change. Le serveur doit les envoyer (notify-keyspace-events, voir le guide) : l'intégration ne le modifie jamais.",
+        "de": "Ein Schlüssel wird gelesen, sobald er sich ändert. Der Server muss sie senden (notify-keyspace-events, siehe Anleitung): Die Integration ändert das nie.",
+        "es": "Una clave se lee en cuanto cambia. El servidor debe enviarlas (notify-keyspace-events, vea la guía): la integración nunca lo modifica."
+      }
+    },
+    {
+      "key": "allow_write",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "label": {
+        "en": "Allow writing from scenes",
+        "fr": "Autoriser l'écriture depuis les scènes",
+        "de": "Schreiben aus Szenen erlauben",
+        "es": "Permitir la escritura desde las escenas"
+      },
+      "description": {
+        "en": "Off: the scene actions refuse to write. On: only the keys followed can be written.",
+        "fr": "Désactivé : les actions de scène refusent d'écrire. Activé : seules les clés suivies s'écrivent.",
+        "de": "Aus: Die Szenenaktionen schreiben nicht. An: Nur die verfolgten Schlüssel sind schreibbar.",
+        "es": "Desactivado: las acciones de escena no escriben. Activado: solo se escriben las claves seguidas."
+      }
+    },
+    {
+      "key": "publish_channels",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "label": {
+        "en": "Channels allowed for publishing",
+        "fr": "Canaux autorisés à la publication",
+        "de": "Erlaubte Kanäle zum Veröffentlichen",
+        "es": "Canales permitidos para publicar"
+      },
+      "description": {
+        "en": "For \"Publish a message\": channel names separated by commas.",
+        "fr": "Pour « Publier un message » : noms de canaux séparés par des virgules.",
+        "de": "Für „Nachricht veröffentlichen“: Kanalnamen durch Kommas getrennt.",
+        "es": "Para «Publicar un mensaje»: nombres de canales separados por comas."
+      },
+      "placeholder": {
+        "en": "e.g. home:events, alerts",
+        "fr": "ex. home:events, alerts",
+        "de": "z. B. home:events, alerts",
+        "es": "p. ej. home:events, alerts"
+      }
+    },
+    {
+      "key": "language",
+      "type": "select",
+      "required": false,
+      "default": "fr",
+      "label": {
+        "en": "Language of the names and messages",
+        "fr": "Langue des noms et des messages",
+        "de": "Sprache der Namen und Meldungen",
+        "es": "Idioma de los nombres y mensajes"
+      },
+      "description": {
+        "en": "Names of the server features, scene and action messages.",
+        "fr": "Noms des fonctionnalités du serveur, messages des scènes et des actions.",
+        "de": "Namen der Serverfunktionen, Meldungen der Szenen und Aktionen.",
+        "es": "Nombres de las funciones del servidor, mensajes de escenas y acciones."
+      },
+      "options": [
+        {
+          "value": "en",
+          "label": {
+            "en": "English",
+            "fr": "Anglais",
+            "de": "Englisch",
+            "es": "Inglés"
+          }
+        },
+        {
+          "value": "fr",
+          "label": {
+            "en": "French",
+            "fr": "Français",
+            "de": "Französisch",
+            "es": "Francés"
+          }
+        },
+        {
+          "value": "de",
+          "label": {
+            "en": "German",
+            "fr": "Allemand",
+            "de": "Deutsch",
+            "es": "Alemán"
+          }
+        },
+        {
+          "value": "es",
+          "label": {
+            "en": "Spanish",
+            "fr": "Espagnol",
+            "de": "Spanisch",
+            "es": "Español"
+          }
+        }
+      ]
     }
   ],
   "actions": [
     {
-      "key": "test_weather",
-      "label": { "en": "Test the weather provider", "fr": "Tester le fournisseur météo" },
-      "timeout_seconds": 30
+      "key": "test_connection",
+      "label": {
+        "en": "Test the connection",
+        "fr": "Tester la connexion",
+        "de": "Verbindung testen",
+        "es": "Probar la conexión"
+      },
+      "description": {
+        "en": "Reads the server and every key now, and says what is wrong.",
+        "fr": "Lit le serveur et chaque clé maintenant, et dit ce qui ne va pas.",
+        "de": "Liest jetzt den Server und jeden Schlüssel und sagt, was nicht stimmt.",
+        "es": "Lee ahora el servidor y cada clave, e indica lo que falla."
+      },
+      "timeout_seconds": 60
     },
     {
-      "key": "identify",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
+      "key": "add_key",
+      "label": {
+        "en": "Add a key",
+        "fr": "Ajouter une clé",
+        "de": "Schlüssel hinzufügen",
+        "es": "Añadir una clave"
+      },
+      "description": {
+        "en": "One device per key. The same key again changes its type or name.",
+        "fr": "Un appareil par clé. La même clé de nouveau change son type ou son nom.",
+        "de": "Ein Gerät pro Schlüssel. Derselbe Schlüssel erneut ändert Typ oder Namen.",
+        "es": "Un dispositivo por clave. La misma clave de nuevo cambia su tipo o nombre."
+      },
+      "timeout_seconds": 30,
       "fields": [
         {
-          "key": "device",
+          "key": "key",
+          "type": "string",
+          "required": false,
+          "label": {
+            "en": "Key",
+            "fr": "Clé",
+            "de": "Schlüssel",
+            "es": "Clave"
+          },
+          "description": {
+            "en": "Exact name, no pattern. A list, a set or a stream gives its length.",
+            "fr": "Nom exact, sans motif. Une liste, un ensemble ou un flux donne sa longueur.",
+            "de": "Genauer Name, kein Muster. Eine Liste, eine Menge oder ein Stream liefert ihre Länge.",
+            "es": "Nombre exacto, sin patrón. Una lista, un conjunto o un flujo da su longitud."
+          },
+          "placeholder": {
+            "en": "e.g. sensors:garage:temperature",
+            "fr": "ex. sensors:garage:temperature",
+            "de": "z. B. sensors:garage:temperature",
+            "es": "p. ej. sensors:garage:temperature"
+          }
+        },
+        {
+          "key": "field",
+          "type": "string",
+          "required": false,
+          "label": {
+            "en": "Hash field (hash only)",
+            "fr": "Champ du hash (hash seulement)",
+            "de": "Hash-Feld (nur Hash)",
+            "es": "Campo del hash (solo hash)"
+          },
+          "placeholder": {
+            "en": "e.g. power",
+            "fr": "ex. power",
+            "de": "z. B. power",
+            "es": "p. ej. power"
+          }
+        },
+        {
+          "key": "type",
           "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
+          "required": false,
+          "default": "auto",
+          "options": [
+            {
+              "value": "auto",
+              "label": {
+                "en": "Automatic (number or text)",
+                "fr": "Automatique (nombre ou texte)",
+                "de": "Automatisch (Zahl oder Text)",
+                "es": "Automático (número o texto)"
+              }
+            },
+            {
+              "value": "number",
+              "label": {
+                "en": "Number",
+                "fr": "Nombre",
+                "de": "Zahl",
+                "es": "Número"
+              }
+            },
+            {
+              "value": "temperature",
+              "label": {
+                "en": "Temperature (°C)",
+                "fr": "Température (°C)",
+                "de": "Temperatur (°C)",
+                "es": "Temperatura (°C)"
+              }
+            },
+            {
+              "value": "humidity",
+              "label": {
+                "en": "Humidity (%)",
+                "fr": "Humidité (%)",
+                "de": "Luftfeuchtigkeit (%)",
+                "es": "Humedad (%)"
+              }
+            },
+            {
+              "value": "percent",
+              "label": {
+                "en": "Percentage (%)",
+                "fr": "Pourcentage (%)",
+                "de": "Prozentsatz (%)",
+                "es": "Porcentaje (%)"
+              }
+            },
+            {
+              "value": "power",
+              "label": {
+                "en": "Power (W)",
+                "fr": "Puissance (W)",
+                "de": "Leistung (W)",
+                "es": "Potencia (W)"
+              }
+            },
+            {
+              "value": "energy",
+              "label": {
+                "en": "Energy (kWh)",
+                "fr": "Énergie (kWh)",
+                "de": "Energie (kWh)",
+                "es": "Energía (kWh)"
+              }
+            },
+            {
+              "value": "text",
+              "label": {
+                "en": "Text",
+                "fr": "Texte",
+                "de": "Text",
+                "es": "Texto"
+              }
+            }
+          ],
+          "label": {
+            "en": "Type in Gladys",
+            "fr": "Type dans Gladys",
+            "de": "Typ in Gladys",
+            "es": "Tipo en Gladys"
+          },
+          "description": {
+            "en": "Automatic: decided from the current value.",
+            "fr": "Automatique : choisi d'après la valeur actuelle.",
+            "de": "Automatisch: nach dem aktuellen Wert gewählt.",
+            "es": "Automático: elegido según el valor actual."
+          }
+        },
+        {
+          "key": "name",
+          "type": "string",
+          "required": false,
+          "label": {
+            "en": "Name (optional)",
+            "fr": "Nom (facultatif)",
+            "de": "Name (optional)",
+            "es": "Nombre (opcional)"
+          },
+          "placeholder": {
+            "en": "e.g. Garage temperature",
+            "fr": "ex. Température du garage",
+            "de": "z. B. Garagentemperatur",
+            "es": "p. ej. Temperatura del garaje"
+          }
+        }
+      ]
+    },
+    {
+      "key": "remove_key",
+      "label": {
+        "en": "Remove a key",
+        "fr": "Supprimer une clé",
+        "de": "Schlüssel entfernen",
+        "es": "Eliminar una clave"
+      },
+      "description": {
+        "en": "Stops following a key (its device stays in Gladys until you delete it).",
+        "fr": "Arrête de suivre une clé (son appareil reste dans Gladys jusqu'à sa suppression).",
+        "de": "Verfolgt einen Schlüssel nicht mehr (sein Gerät bleibt in Gladys, bis du es löschst).",
+        "es": "Deja de seguir una clave (su dispositivo queda en Gladys hasta que lo elimine)."
+      },
+      "timeout_seconds": 30,
+      "fields": [
+        {
+          "key": "key",
+          "type": "string",
+          "required": false,
+          "label": {
+            "en": "Key",
+            "fr": "Clé",
+            "de": "Schlüssel",
+            "es": "Clave"
+          },
+          "description": {
+            "en": "Exact name, no pattern. A list, a set or a stream gives its length.",
+            "fr": "Nom exact, sans motif. Une liste, un ensemble ou un flux donne sa longueur.",
+            "de": "Genauer Name, kein Muster. Eine Liste, eine Menge oder ein Stream liefert ihre Länge.",
+            "es": "Nombre exacto, sin patrón. Una lista, un conjunto o un flujo da su longitud."
+          },
+          "placeholder": {
+            "en": "e.g. sensors:garage:temperature",
+            "fr": "ex. sensors:garage:temperature",
+            "de": "z. B. sensors:garage:temperature",
+            "es": "p. ej. sensors:garage:temperature"
+          }
+        },
+        {
+          "key": "field",
+          "type": "string",
+          "required": false,
+          "label": {
+            "en": "Hash field (hash only)",
+            "fr": "Champ du hash (hash seulement)",
+            "de": "Hash-Feld (nur Hash)",
+            "es": "Campo del hash (solo hash)"
+          },
+          "placeholder": {
+            "en": "e.g. power",
+            "fr": "ex. power",
+            "de": "z. B. power",
+            "es": "p. ej. power"
+          }
         }
       ]
     }
   ],
   "scene_triggers": [
     {
-      "key": "motion_detected",
-      "label": { "en": "Motion detected", "fr": "Mouvement détecté" },
+      "key": "key_changed",
+      "label": {
+        "en": "A Redis key changes",
+        "fr": "Une clé Redis change",
+        "de": "Ein Redis-Schlüssel ändert sich",
+        "es": "Una clave de Redis cambia"
+      },
       "description": {
-        "en": "A demo motion sensor saw a person or an animal move.",
-        "fr": "Un détecteur de démonstration a vu bouger une personne ou un animal."
+        "en": "A keyspace notification for a key followed: set, deleted, expired… Needs the notifications.",
+        "fr": "Une notification keyspace pour une clé suivie : écrite, supprimée, expirée… Demande les notifications.",
+        "de": "Eine Keyspace-Benachrichtigung zu einem verfolgten Schlüssel: gesetzt, gelöscht, abgelaufen… Braucht die Benachrichtigungen.",
+        "es": "Una notificación keyspace de una clave seguida: escrita, eliminada, caducada… Requiere las notificaciones."
       },
       "fields": [
         {
           "key": "device",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Sensor", "fr": "Détecteur" }
+          "required": false,
+          "label": {
+            "en": "Key (empty: any)",
+            "fr": "Clé (vide : toutes)",
+            "de": "Schlüssel (leer: alle)",
+            "es": "Clave (vacío: todas)"
+          }
         },
         {
-          "key": "target",
-          "type": "multi_select",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" },
-          "options": [
-            { "value": "person", "label": { "en": "Person", "fr": "Personne" } },
-            { "value": "animal", "label": { "en": "Animal", "fr": "Animal" } }
-          ]
+          "key": "event",
+          "type": "string",
+          "required": false,
+          "label": {
+            "en": "Event (empty: any)",
+            "fr": "Événement (vide : tous)",
+            "de": "Ereignis (leer: alle)",
+            "es": "Evento (vacío: todos)"
+          },
+          "description": {
+            "en": "Redis name: set, del, expired, incrbyfloat, hset…",
+            "fr": "Nom Redis : set, del, expired, incrbyfloat, hset…",
+            "de": "Redis-Name: set, del, expired, incrbyfloat, hset…",
+            "es": "Nombre Redis: set, del, expired, incrbyfloat, hset…"
+          },
+          "placeholder": {
+            "en": "e.g. expired",
+            "fr": "ex. expired",
+            "de": "z. B. expired",
+            "es": "p. ej. expired"
+          }
         }
       ],
       "variables": [
         {
-          "key": "target",
+          "key": "key",
           "type": "string",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" }
+          "label": {
+            "en": "Key",
+            "fr": "Clé",
+            "de": "Schlüssel",
+            "es": "Clave"
+          }
+        },
+        {
+          "key": "name",
+          "type": "string",
+          "label": {
+            "en": "Name",
+            "fr": "Nom",
+            "de": "Name",
+            "es": "Nombre"
+          }
+        },
+        {
+          "key": "event",
+          "type": "string",
+          "label": {
+            "en": "Event",
+            "fr": "Événement",
+            "de": "Ereignis",
+            "es": "Evento"
+          }
+        },
+        {
+          "key": "value",
+          "type": "string",
+          "label": {
+            "en": "New value (empty if none)",
+            "fr": "Nouvelle valeur (vide si aucune)",
+            "de": "Neuer Wert (leer, wenn keiner)",
+            "es": "Nuevo valor (vacío si ninguno)"
+          }
         }
       ]
     }
   ],
   "scene_actions": [
     {
-      "key": "identify_device",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
+      "key": "set_value",
+      "label": {
+        "en": "Write a Redis value",
+        "fr": "Écrire une valeur Redis",
+        "de": "Redis-Wert schreiben",
+        "es": "Escribir un valor de Redis"
+      },
       "description": {
-        "en": "Make a device signal itself (the demo light blinks).",
-        "fr": "Fait se signaler un appareil (la lampe de démonstration clignote)."
+        "en": "SET on a key followed (HSET for a hash field), with an optional expiry.",
+        "fr": "SET sur une clé suivie (HSET pour un champ de hash), avec une expiration facultative.",
+        "de": "SET auf einen verfolgten Schlüssel (HSET für ein Hash-Feld), mit optionalem Ablauf.",
+        "es": "SET en una clave seguida (HSET para un campo de hash), con expiración opcional."
       },
       "timeout_seconds": 15,
       "fields": [
@@ -149,29 +703,230 @@
           "key": "device",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
+          "required": true,
+          "label": {
+            "en": "Key",
+            "fr": "Clé",
+            "de": "Schlüssel",
+            "es": "Clave"
+          },
+          "description": {
+            "en": "A key device added to Gladys.",
+            "fr": "Un appareil clé ajouté à Gladys.",
+            "de": "Ein in Gladys angelegtes Schlüsselgerät.",
+            "es": "Un dispositivo clave añadido a Gladys."
+          }
+        },
+        {
+          "key": "value",
+          "type": "string",
+          "required": true,
+          "label": {
+            "en": "Value",
+            "fr": "Valeur",
+            "de": "Wert",
+            "es": "Valor"
+          }
+        },
+        {
+          "key": "expire_seconds",
+          "type": "number",
+          "required": false,
+          "min": 0,
+          "label": {
+            "en": "Expires after (seconds, 0: never)",
+            "fr": "Expire après (secondes, 0 : jamais)",
+            "de": "Läuft ab nach (Sekunden, 0: nie)",
+            "es": "Caduca tras (segundos, 0: nunca)"
+          }
+        }
+      ]
+    },
+    {
+      "key": "increment",
+      "label": {
+        "en": "Increment a Redis value",
+        "fr": "Incrémenter une valeur Redis",
+        "de": "Redis-Wert erhöhen",
+        "es": "Incrementar un valor de Redis"
+      },
+      "description": {
+        "en": "INCRBYFLOAT on a key followed (HINCRBYFLOAT for a hash field). Negative: decrement.",
+        "fr": "INCRBYFLOAT sur une clé suivie (HINCRBYFLOAT pour un champ de hash). Négatif : décrémente.",
+        "de": "INCRBYFLOAT auf einen verfolgten Schlüssel (HINCRBYFLOAT für ein Hash-Feld). Negativ: verringern.",
+        "es": "INCRBYFLOAT en una clave seguida (HINCRBYFLOAT para un campo de hash). Negativo: disminuye."
+      },
+      "timeout_seconds": 15,
+      "fields": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "required": true,
+          "label": {
+            "en": "Key",
+            "fr": "Clé",
+            "de": "Schlüssel",
+            "es": "Clave"
+          },
+          "description": {
+            "en": "A key device added to Gladys.",
+            "fr": "Un appareil clé ajouté à Gladys.",
+            "de": "Ein in Gladys angelegtes Schlüsselgerät.",
+            "es": "Un dispositivo clave añadido a Gladys."
+          }
+        },
+        {
+          "key": "by",
+          "type": "string",
+          "required": false,
+          "label": {
+            "en": "By (empty: 1)",
+            "fr": "De (vide : 1)",
+            "de": "Um (leer: 1)",
+            "es": "En (vacío: 1)"
+          },
+          "placeholder": {
+            "en": "e.g. 1.5",
+            "fr": "ex. 1,5",
+            "de": "z. B. 1,5",
+            "es": "p. ej. 1,5"
+          }
         }
       ],
       "outputs": [
         {
-          "key": "signalled",
-          "type": "boolean",
-          "label": { "en": "Device signalled", "fr": "Appareil signalé" }
+          "key": "value",
+          "type": "number",
+          "label": {
+            "en": "New value",
+            "fr": "Nouvelle valeur",
+            "de": "Neuer Wert",
+            "es": "Nuevo valor"
+          }
+        }
+      ]
+    },
+    {
+      "key": "publish",
+      "label": {
+        "en": "Publish a Redis message",
+        "fr": "Publier un message Redis",
+        "de": "Redis-Nachricht veröffentlichen",
+        "es": "Publicar un mensaje de Redis"
+      },
+      "description": {
+        "en": "PUBLISH on a channel listed in the configuration.",
+        "fr": "PUBLISH sur un canal listé dans la configuration.",
+        "de": "PUBLISH auf einem in der Konfiguration aufgeführten Kanal.",
+        "es": "PUBLISH en un canal indicado en la configuración."
+      },
+      "timeout_seconds": 15,
+      "fields": [
+        {
+          "key": "channel",
+          "type": "string",
+          "required": true,
+          "label": {
+            "en": "Channel",
+            "fr": "Canal",
+            "de": "Kanal",
+            "es": "Canal"
+          },
+          "placeholder": {
+            "en": "e.g. home:events",
+            "fr": "ex. home:events",
+            "de": "z. B. home:events",
+            "es": "p. ej. home:events"
+          }
+        },
+        {
+          "key": "message",
+          "type": "string",
+          "required": true,
+          "label": {
+            "en": "Message",
+            "fr": "Message",
+            "de": "Nachricht",
+            "es": "Mensaje"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "key": "receivers",
+          "type": "number",
+          "label": {
+            "en": "Subscribers reached",
+            "fr": "Abonnés atteints",
+            "de": "Erreichte Abonnenten",
+            "es": "Suscriptores alcanzados"
+          }
         }
       ]
     }
   ],
   "widgets": [
     {
-      "key": "demo_status",
-      "label": { "en": "Demo status", "fr": "État de la démo" },
-      "description": {
-        "en": "Live temperature and plug power, plug connection and observed location.",
-        "fr": "Température et puissance en direct, connexion de la prise, position observée."
+      "key": "values",
+      "label": {
+        "en": "Redis values",
+        "fr": "Valeurs Redis",
+        "de": "Redis-Werte",
+        "es": "Valores de Redis"
       },
-      "icon": "activity",
-      "action_timeout_seconds": 15
+      "description": {
+        "en": "The value of each key followed, and the server.",
+        "fr": "La valeur de chaque clé suivie, et le serveur.",
+        "de": "Der Wert jedes verfolgten Schlüssels und der Server.",
+        "es": "El valor de cada clave seguida, y el servidor."
+      },
+      "icon": "database",
+      "action_timeout_seconds": 30,
+      "settings": [
+        {
+          "key": "keys",
+          "type": "multi_select",
+          "source": "devices",
+          "required": false,
+          "label": {
+            "en": "Keys (empty: all)",
+            "fr": "Clés (vide : toutes)",
+            "de": "Schlüssel (leer: alle)",
+            "es": "Claves (vacío: todas)"
+          },
+          "description": {
+            "en": "Only the devices added to Gladys can be chosen.",
+            "fr": "Seuls les appareils ajoutés à Gladys se choisissent.",
+            "de": "Nur die in Gladys angelegten Geräte sind wählbar.",
+            "es": "Solo se pueden elegir los dispositivos añadidos a Gladys."
+          }
+        },
+        {
+          "key": "show_server",
+          "type": "boolean",
+          "required": false,
+          "default": true,
+          "label": {
+            "en": "Show the server row",
+            "fr": "Afficher la ligne du serveur",
+            "de": "Serverzeile anzeigen",
+            "es": "Mostrar la fila del servidor"
+          }
+        },
+        {
+          "key": "show_refresh",
+          "type": "boolean",
+          "required": false,
+          "default": true,
+          "label": {
+            "en": "Show the Refresh button",
+            "fr": "Afficher le bouton Actualiser",
+            "de": "Schaltfläche „Aktualisieren“ anzeigen",
+            "es": "Mostrar el botón Actualizar"
+          }
+        }
+      ]
     }
   ]
 }
