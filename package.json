@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@gladysassistant/integration-sdk": "^0.16.1",
-    "@redis/client": "^6.3.1"
+    "@redis/client": "^6.4.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
